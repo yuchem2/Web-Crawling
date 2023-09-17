@@ -18,13 +18,10 @@ def get_table(driver, cur):
 
     for i in range(len(rows)):
         td = rows[i].find_elements(By.TAG_NAME, 'td')
-
-        for j in range(7):
-            sys.stdout.write(td[j].text+" ")
-        sys.stdout.write("\n")
-
         cur.execute("INSERT INTO course (campus, courseID, subID, division, department, courseName, professor) VALUES(%s, %s, %s, %s, %s, %s, %s)",
                     (td[0].text, td[1].text, td[2].text, td[3].text, td[4].text, td[5].text, td[6].text))
+        for j in range(7):
+            sys.stdout.write(td[j].text + " ")
         td[1].click()
 
         handles = driver.window_handles
@@ -33,12 +30,22 @@ def get_table(driver, cur):
         # check books
         driver.switch_to.frame('myiframe3')
         book_table = driver.find_element(By.XPATH, '/html/body/div/div/form/table')
-        try:
-            tb = book_table.find_element(By.TAG_NAME, 'tbody').find_elements(By.TAG_NAME, 'tr')
-            cur.execute("SELECT MAX(ID) FROM course")
-            res = cur.fetchall()
+        cur.execute("SELECT MAX(ID) FROM course")
+        res = cur.fetchall()
+
+        tb = book_table.find_element(By.TAG_NAME, 'tbody').find_elements(By.TAG_NAME, 'tr')
+        if len(tb) == 0:
+            sys.stdout.write("Check file {} \n".format(res[-1][-1]))
+            try:
+                driver.switch_to.parent_frame()
+                file = driver.find_element(By.XPATH, '/html/body/div/div[2]/form[1]/table[5]/tbody/tr[2]/td[2]/a')
+                file.click()
+            except exceptions.NoSuchElementException:
+                sys.stdout.write("No file {} \n".format(res[-1][-1]))
+        else:
             for i in range(len(tb)):
                 booktd = tb[i].find_elements(By.TAG_NAME, 'td')
+                print(booktd[0])
                 cur.execute("INSERT INTO book (courseID, bookname, author, published) VALUES(%s, %s, %s, %s)",
                             (res[-1][-1], booktd[1].text, booktd[2].text, booktd[4].text))
 
@@ -46,14 +53,8 @@ def get_table(driver, cur):
                     sys.stdout.write(booktd[j].text+" ")
                 sys.stdout.write("\n")
 
-        except exceptions.NoSuchElementException:
-            pass
-        finally:
-            driver.switch_to.parent_frame()
-            file = driver.find_element(By.XPATH, '/html/body/div/div[2]/form[1]/table[5]/tbody/tr[2]/td[2]/a')
-            file.click()
-            time.sleep(2)
-            driver.close()
+        time.sleep(2)
+        driver.close()
 
         driver.switch_to.window(handles[0])
         driver.switch_to.frame("Main")
