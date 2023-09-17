@@ -4,11 +4,12 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common import exceptions
+import pymysql
 import time
 import sys
 
 
-def get_table(driver):
+def get_table(driver, cur):
     driver.find_element(By.ID, 'btnSearch').click()
     time.sleep(3)
 
@@ -17,9 +18,13 @@ def get_table(driver):
 
     for i in range(len(rows)):
         td = rows[i].find_elements(By.TAG_NAME, 'td')
+
         for j in range(7):
             sys.stdout.write(td[j].text+" ")
         sys.stdout.write("\n")
+
+        cur.execute("INSERT INTO course (campus, courseID, subID, division, department, courseName, professor) VALUES(%s, %s, %s, %s, %s, %s, %s)",
+                    (td[0].text, td[1].text, td[2].text, td[3].text, td[4].text, td[5].text, td[6].text))
         td[1].click()
 
         handles = driver.window_handles
@@ -30,11 +35,16 @@ def get_table(driver):
         book_table = driver.find_element(By.XPATH, '/html/body/div/div/form/table')
         try:
             tb = book_table.find_element(By.TAG_NAME, 'tbody').find_elements(By.TAG_NAME, 'tr')
+            cur.execute("SELECT MAX(ID) FROM course")
+            res = cur.fetchall()
             for i in range(len(tb)):
-                td = tb[i].find_elements(By.TAG_NAME, 'td')
-                for j in range(len(td)):
-                    print(td[j].text, end=" ")
-                print()
+                booktd = tb[i].find_elements(By.TAG_NAME, 'td')
+                cur.execute("INSERT INTO book (courseID, bookname, author, published) VALUES(%s, %s, %s, %s)",
+                            (res[-1][-1], booktd[1].text, booktd[2].text, booktd[4].text))
+
+                for j in range(len(booktd)):
+                    sys.stdout.write(booktd[j].text+" ")
+                sys.stdout.write("\n")
 
         except exceptions.NoSuchElementException:
             pass
@@ -76,6 +86,9 @@ driver.switch_to.frame("coreMain")
 campus = Select(driver.find_element(By.XPATH, '//*[@id="pCampus"]'))
 campus.select_by_value("2")
 
+
+conn = pymysql.connect(host='127.0.0.1', user='root', password='2038094', db='courseDB', charset='utf8')
+cur = conn.cursor()
 category1 = Select(driver.find_element(By.ID, 'pCourDiv'))
 for i in range(len(category1.options)):
     category1.select_by_index(i)
@@ -91,18 +104,19 @@ for i in range(len(category1.options)):
                 print(category1.all_selected_options[0].text,
                       category2.all_selected_options[0].text,
                       category3.all_selected_options[0].text)
-                get_table(driver)
-    elif i == 2:
-        category2 = Select(driver.find_element(By.ID, 'pGroupCd'))
-        for j in range(len(category2.options)):
-            category2.select_by_index(j)
-            print(category1.all_selected_options[0].text,
-                  category2.all_selected_options[0].text)
-            get_table(driver)
-    else:
-        print(category1.all_selected_options[0].text)
-        get_table(driver)
-    break
+                get_table(driver, cur)
+    #elif i == 2:
+    #    category2 = Select(driver.find_element(By.ID, 'pGroupCd'))
+    #    for j in range(len(category2.options)):
+    #        category2.select_by_index(j)
+    #        print(category1.all_selected_options[0].text,
+    #              category2.all_selected_options[0].text)
+    #        get_table(driver, cur)
+    #else:
+    #    print(category1.all_selected_options[0].text)
+    #    get_table(driver, cur)
 
 
 time.sleep(3)
+conn.commit()
+conn.close()
