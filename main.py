@@ -9,7 +9,7 @@ import time
 import sys
 
 
-def get_table(driver, cur):
+def get_table(driver, cur, conn):
     driver.find_element(By.ID, 'btnSearch').click()
     time.sleep(3)
 
@@ -59,6 +59,7 @@ def get_table(driver, cur):
         driver.switch_to.window(handles[0])
         driver.switch_to.frame("Main")
         driver.switch_to.frame("coreMain")
+    conn.commit()
 
 
 # Options
@@ -87,9 +88,11 @@ driver.switch_to.frame("coreMain")
 campus = Select(driver.find_element(By.XPATH, '//*[@id="pCampus"]'))
 campus.select_by_value("2")
 
-
+# connect MySQL
 conn = pymysql.connect(host='127.0.0.1', user='root', password='2038094', db='courseDB', charset='utf8')
 cur = conn.cursor()
+
+# search table information
 category1 = Select(driver.find_element(By.ID, 'pCourDiv'))
 for i in range(len(category1.options)):
     category1.select_by_index(i)
@@ -105,19 +108,20 @@ for i in range(len(category1.options)):
                 print(category1.all_selected_options[0].text,
                       category2.all_selected_options[0].text,
                       category3.all_selected_options[0].text)
-                get_table(driver, cur)
-    #elif i == 2:
-    #    category2 = Select(driver.find_element(By.ID, 'pGroupCd'))
-    #    for j in range(len(category2.options)):
-    #        category2.select_by_index(j)
-    #        print(category1.all_selected_options[0].text,
-    #              category2.all_selected_options[0].text)
-    #        get_table(driver, cur)
-    #else:
-    #    print(category1.all_selected_options[0].text)
-    #    get_table(driver, cur)
+                get_table(driver, cur, conn)
+    elif i == 2:
+        category2 = Select(driver.find_element(By.ID, 'pGroupCd'))
+        for j in range(len(category2.options)):
+            category2.select_by_index(j)
+            print(category1.all_selected_options[0].text,
+                  category2.all_selected_options[0].text)
+            get_table(driver, cur, conn)
+    else:
+        print(category1.all_selected_options[0].text)
+        get_table(driver, cur, conn)
 
 
+# close
 time.sleep(3)
-conn.commit()
+driver.close()
 conn.close()
