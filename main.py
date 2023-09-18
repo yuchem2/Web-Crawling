@@ -99,7 +99,7 @@ cur = conn.cursor()
 
 # search table information
 category1 = Select(driver.find_element(By.ID, 'pCourDiv'))
-for i in range(len(category1.options)):
+for i in range(2, len(category1.options)):
     category1.select_by_index(i)
     time.sleep(2)
     if i < 2:
@@ -116,7 +116,7 @@ for i in range(len(category1.options)):
                 get_table(driver, cur, conn)
     elif i == 2:
         category2 = Select(driver.find_element(By.ID, 'pGroupCd'))
-        for j in range(len(category2.options)):
+        for j in range(10, len(category2.options)):
             category2.select_by_index(j)
             print(category1.all_selected_options[0].text,
                   category2.all_selected_options[0].text)
