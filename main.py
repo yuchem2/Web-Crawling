@@ -15,9 +15,10 @@ def get_table(driver, cur, conn):
 
     table = driver.find_element(By.ID, 'gridLecture')
     rows = table.find_element(By.TAG_NAME, 'tbody').find_elements(By.TAG_NAME, 'tr')
-
     for i in range(len(rows)):
         td = rows[i].find_elements(By.TAG_NAME, 'td')
+        if len(td) < 2:
+            return
         cur.execute("INSERT INTO course (campus, courseID, subID, division, department, courseName, professor) VALUES(%s, %s, %s, %s, %s, %s, %s)",
                     (td[0].text, td[1].text, td[2].text, td[3].text, td[4].text, td[5].text, td[6].text))
         for j in range(7):
@@ -45,9 +46,13 @@ def get_table(driver, cur, conn):
         else:
             for i in range(len(tb)):
                 booktd = tb[i].find_elements(By.TAG_NAME, 'td')
-                print(booktd[0])
-                cur.execute("INSERT INTO book (courseID, bookname, author, published) VALUES(%s, %s, %s, %s)",
-                            (res[-1][-1], booktd[1].text, booktd[2].text, booktd[4].text))
+                print(booktd[0].text)
+                if booktd[4].text == '':
+                    cur.execute("INSERT INTO book (courseID, bookname, author, published) VALUES(%s, %s, %s, %s)",
+                                (res[-1][-1], booktd[1].text, booktd[2].text, 0))
+                else:
+                    cur.execute("INSERT INTO book (courseID, bookname, author, published) VALUES(%s, %s, %s, %s)",
+                                (res[-1][-1], booktd[1].text, booktd[2].text, booktd[4].text))
 
                 for j in range(len(booktd)):
                     sys.stdout.write(booktd[j].text+" ")
@@ -65,7 +70,7 @@ def get_table(driver, cur, conn):
 # Options
 options = webdriver.ChromeOptions()
 options.add_experimental_option("prefs", {
-    "download.default_directory": r"G:\자료파일\고려대(세종)\3학년 2학기\캡스톤 디자인2\Web Crawling\downloads",
+    "download.default_directory": r"G:\자료파일\고려대(세종)\3학년 2학기\캡스톤 디자인2\downloads",
     "download.prompt_for_download": False,
     "download.directory_upgrade": True,
     "safebrowing.enabled": True
@@ -100,7 +105,7 @@ for i in range(len(category1.options)):
     if i < 2:
         category2 = Select(driver.find_element(By.ID, 'pCol'))
         category3 = Select(driver.find_element(By.ID, 'pDept'))
-        for j in range(len(category2.options)):
+        for j in range(3, len(category2.options)):
             category2.select_by_index(j)
             driver.implicitly_wait(2)
             for k in range(len(category3.options)):
