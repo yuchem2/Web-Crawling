@@ -1,9 +1,6 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support.ui import Select
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common import exceptions
 import pymysql
 import time
 import sys
@@ -21,50 +18,65 @@ def get_table(driver, cur, conn):
             return
         cur.execute("INSERT INTO course (campus, courseID, subID, division, department, courseName, professor) VALUES(%s, %s, %s, %s, %s, %s, %s)",
                     (td[0].text, td[1].text, td[2].text, td[3].text, td[4].text, td[5].text, td[6].text))
+        conn.commit()
         for j in range(7):
             sys.stdout.write(td[j].text + " ")
+        print()
         td[1].click()
+        time.sleep(1)
 
         handles = driver.window_handles
         driver.switch_to.window(handles[-1])
 
         # check books
-        driver.switch_to.frame('myiframe3')
-        book_table = driver.find_element(By.XPATH, '/html/body/div/div/form/table')
-        cur.execute("SELECT MAX(ID) FROM course")
-        res = cur.fetchall()
+        try:
+            driver.switch_to.frame('myiframe3')
+            book_table = driver.find_element(By.XPATH, '/html/body/div/div/form/table')
+            cur.execute("SELECT MAX(ID) FROM course")
+            res = cur.fetchall()
 
-        tb = book_table.find_element(By.TAG_NAME, 'tbody').find_elements(By.TAG_NAME, 'tr')
-        if len(tb) == 0:
-            sys.stdout.write("Check file {} \n".format(res[-1][-1]))
-            try:
-                driver.switch_to.parent_frame()
-                file = driver.find_element(By.XPATH, '/html/body/div/div[2]/form[1]/table[5]/tbody/tr[2]/td[2]/a')
-                file.click()
-            except exceptions.NoSuchElementException:
-                sys.stdout.write("No file {} \n".format(res[-1][-1]))
-        else:
-            for i in range(len(tb)):
-                booktd = tb[i].find_elements(By.TAG_NAME, 'td')
-                print(booktd[0].text)
-                if booktd[4].text == '':
-                    cur.execute("INSERT INTO book (courseID, bookname, author, published) VALUES(%s, %s, %s, %s)",
-                                (res[-1][-1], booktd[1].text, booktd[2].text, 0))
-                else:
-                    cur.execute("INSERT INTO book (courseID, bookname, author, published) VALUES(%s, %s, %s, %s)",
-                                (res[-1][-1], booktd[1].text, booktd[2].text, booktd[4].text))
+            tb = book_table.find_element(By.TAG_NAME, 'tbody').find_elements(By.TAG_NAME, 'tr')
+            if len(tb) != 0:
+                for i in range(len(tb)):
+                    booktd = tb[i].find_elements(By.TAG_NAME, 'td')
+                    print(booktd[0].text)
+                    if booktd[4].text == '':
+                        cur.execute("SELECT bookname, bookID FROM book WHERE bookname = %s", booktd[1].text)
+                        res1 = cur.fetchall()
+                        if len(res1) == 0:
+                            cur.execute("INSERT INTO book (bookname, author, published) VALUES(%s, %s, %s)",
+                                        (booktd[1].text, booktd[2].text, 0))
+                            cur.execute("SELECT MAX(bookID) FROM book")
+                            res1 = cur.fetchall()
 
-                for j in range(len(booktd)):
-                    sys.stdout.write(booktd[j].text+" ")
-                sys.stdout.write("\n")
+                        cur.execute("INSERT INTO course_book (courseID, bookID) VALUES(%s, %s)",
+                                    (res[-1][-1], res1[-1][-1]))
+                    else:
+                        cur.execute("SELECT bookname, bookID FROM book WHERE bookname = %s", booktd[1].text)
+                        res1 = cur.fetchall()
+                        if len(res1) == 0:
+                            cur.execute("INSERT INTO book (bookname, author, published) VALUES(%s, %s, %s)",
+                                        (booktd[1].text, booktd[2].text, booktd[4].text))
+                            cur.execute("SELECT MAX(bookID) FROM book")
+                            res1 = cur.fetchall()
 
-        time.sleep(2)
-        driver.close()
+                        cur.execute("INSERT INTO course_book (courseID, bookID) VALUES(%s, %s)",
+                                    (res[-1][-1], res1[-1][-1]))
+                    conn.commit()
+
+                    for j in range(len(booktd)):
+                        sys.stdout.write(booktd[j].text+" ")
+                    sys.stdout.write("\n")
+
+            time.sleep(2)
+            driver.close()
+        except:
+            time.sleep(1)
 
         driver.switch_to.window(handles[0])
         driver.switch_to.frame("Main")
         driver.switch_to.frame("coreMain")
-    conn.commit()
+
 
 
 # Options
@@ -99,13 +111,14 @@ cur = conn.cursor()
 
 # search table information
 category1 = Select(driver.find_element(By.ID, 'pCourDiv'))
-for i in range(2, len(category1.options)):
+#
+for i in range(len(category1.options)):
     category1.select_by_index(i)
     time.sleep(2)
     if i < 2:
         category2 = Select(driver.find_element(By.ID, 'pCol'))
         category3 = Select(driver.find_element(By.ID, 'pDept'))
-        for j in range(3, len(category2.options)):
+        for j in range(len(category2.options)):
             category2.select_by_index(j)
             driver.implicitly_wait(2)
             for k in range(len(category3.options)):
@@ -113,16 +126,19 @@ for i in range(2, len(category1.options)):
                 print(category1.all_selected_options[0].text,
                       category2.all_selected_options[0].text,
                       category3.all_selected_options[0].text)
+                print()
                 get_table(driver, cur, conn)
     elif i == 2:
         category2 = Select(driver.find_element(By.ID, 'pGroupCd'))
-        for j in range(10, len(category2.options)):
+        for j in range(len(category2.options)):
             category2.select_by_index(j)
             print(category1.all_selected_options[0].text,
                   category2.all_selected_options[0].text)
+            print()
             get_table(driver, cur, conn)
     else:
         print(category1.all_selected_options[0].text)
+        print()
         get_table(driver, cur, conn)
 
 
